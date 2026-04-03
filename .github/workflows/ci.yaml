@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup steps for iron-proxy
+      - name: Start iron-proxy
+        run: |
+          # Download and install iron-proxy
+          echo "=== Installing iron-proxy ==="
+          export VERSION=0.4.0
+          curl -fsSL -o /tmp/iron-proxy.tgz \
+            https://github.com/ironsh/iron-proxy/releases/download/v${VERSION}/iron-proxy_${VERSION}_linux_amd64.tar.gz
+          tar -xzf /tmp/iron-proxy.tgz -C /tmp
+          sudo mv /tmp/iron-proxy /usr/local/bin/iron-proxy
+          sudo chmod +x /usr/local/bin/iron-proxy
+
+          # Generate a CA for TLS interception. Must have keyUsage=critical,keyCertSign and CA constraints
+          echo "=== Generating CA for TLS interception ==="
+          mkdir -p /tmp/iron-proxy-ca
+          openssl genrsa -out /tmp/iron-proxy-ca/ca.key 2048 2>/dev/null
+          openssl req -x509 -new -nodes \
+            -key /tmp/iron-proxy-ca/ca.key \
+            -sha256 -days 1 \
+            -subj "/CN=iron-proxy CA" \
+            -addext "basicConstraints=critical,CA:TRUE" \
+            -addext "keyUsage=critical,keyCertSign" \
+            -out /tmp/iron-proxy-ca/ca.crt 2>/dev/null
+
+          # Trust the CA system-wide, and within Node.js. Some tools require extra config
+          echo "=== Trusting CA system-wide ==="
+          sudo cp /tmp/iron-proxy-ca/ca.crt \
+            /usr/local/share/ca-certificates/iron-proxy-ca.crt
+          sudo update-ca-certificates
+          echo "NODE_EXTRA_CA_CERTS=/tmp/iron-proxy-ca/ca.crt" >> $GITHUB_ENV
+
+          # Stop systemd-resolved. Required to allow iron-proxy to handle DNS resolution
+          echo "=== Stopping systemd-resolved ==="
+          sudo systemctl stop systemd-resolved || true
+
+          # Start iron-proxy. Use setsid to run it in the background
+          echo "=== Starting iron-proxy ==="
+          sudo install -m 644 -o root -g root /dev/null /var/log/iron-proxy.log
+          sudo setsid bash -c '/usr/local/bin/iron-proxy -config ./iron-proxy.yaml &>/var/log/iron-proxy.log' &
+          sleep 0.5
+
+          # Delete the key from disk now that it's in memory
+          rm /tmp/iron-proxy-ca/ca.key
+
+          # Route DNS through the proxy
+          echo "=== Routing DNS through the proxy ==="
+          sudo bash -c 'echo "nameserver 127.0.0.1" > /etc/resolv.conf'
+
+      # Your build steps (all traffic goes through iron-proxy)
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Print proxy log
+        if: always()
+        run: |
+          echo "=== Proxy log ==="
+          cat /var/log/iron-proxy.log | grep --line-buffered '^{' | \
+            jq -r '[(.time | split(".")[0]), .audit.action, .audit.host, .audit.method, .audit.path] | @tsv'
