@@ -1,0 +1,23 @@
+{
+  "name": "hosted-actions-example",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/ironsh/hosted-actions-example#readme",
+  "bugs": {
+    "url": "https://github.com/ironsh/hosted-actions-example/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ironsh/hosted-actions-example.git"
+  },
+  "license": "MIT",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "node example.test.js"
+  },
+  "devDependencies": {
+    "tap": "^21.6.2"
+  }
+}
