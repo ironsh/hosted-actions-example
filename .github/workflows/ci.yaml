@@ -47,7 +47,8 @@ jobs:
           echo "=== Stopping systemd-resolved ==="
           sudo systemctl stop systemd-resolved || true
 
-          # Start iron-proxy. Use setsid to run it in the background
+          # Start iron-proxy. Use setsid to run it in a new session so it is not
+          # killed when the run: block's shell exits.
           echo "=== Starting iron-proxy ==="
           sudo install -m 644 -o root -g root /dev/null /var/log/iron-proxy.log
           sudo setsid bash -c '/usr/local/bin/iron-proxy -config ./iron-proxy.yaml &>/var/log/iron-proxy.log' &
@@ -59,6 +60,16 @@ jobs:
           # Route DNS through the proxy
           echo "=== Routing DNS through the proxy ==="
           sudo bash -c 'echo "nameserver 127.0.0.1" > /etc/resolv.conf'
+
+          # Lock down outbound traffic with iptables. Only loopback traffic (how
+          # processes reach the proxy), DNS to the upstream resolver, and traffic
+          # from root (how the proxy reaches the internet) are allowed. Everything
+          # else is rejected.
+          echo "=== Configuring iptables ==="
+          sudo iptables -A OUTPUT -o lo -j ACCEPT
+          sudo iptables -A OUTPUT -m owner --uid-owner root -j ACCEPT
+          sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+          sudo iptables -A OUTPUT -j REJECT --reject-with icmp-port-unreachable
 
       # Your build steps (all traffic goes through iron-proxy)
       - name: Install dependencies
