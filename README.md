@@ -12,6 +12,8 @@
 
 That's it. Everything below explains what is happening under the hood.
 
+> **Security note:** GitHub Actions gives build jobs `sudo`. Attackers can therefore circumvent egress enforcement if they detect it. For this reason, we strongly recommend using self-hosted runners in VMs and performing egress enforcement at the hypervisor level.
+
 ## Configuring the Allowlist
 
 The proxy configuration lives in [`iron-proxy.yaml`](iron-proxy.yaml). The key section is the `transforms` block:
@@ -63,8 +65,6 @@ iron-proxy sits between your CI job and the internet. It has four responsibiliti
 2. **TLS interception.** For HTTPS, iron-proxy generates certificates on the fly for each destination host, signed by a short-lived CA that the workflow creates and trusts. Tools like `curl`, `npm`, and `apt` accept these certificates because the CA is in the system trust store.
 3. **Allowlist enforcement.** Each request is checked against the domain and CIDR lists in `iron-proxy.yaml`. Requests to unlisted hosts are blocked and logged.
 4. **Network lockdown.** iptables rules prevent any process from bypassing the proxy by connecting to an external IP directly. Only root (the user iron-proxy runs as) and already-established connections are allowed to make outbound connections. All other processes must go through loopback, where the proxy is listening.
-
-> **Security note:** GitHub Actions gives build jobs `sudo`. As a result an attacker could undo the enforcement above if they knew they were running in a locked-down runner like this. Self-hosted runners that remove `sudo` access or using your own control plane that controls egress outside the runner itself are therefore much more preferable from a security perspective.
 
 ## Detailed Walkthrough
 
