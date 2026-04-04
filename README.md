@@ -64,6 +64,8 @@ iron-proxy sits between your CI job and the internet. It has four responsibiliti
 3. **Allowlist enforcement.** Each request is checked against the domain and CIDR lists in `iron-proxy.yaml`. Requests to unlisted hosts are blocked and logged.
 4. **Network lockdown.** iptables rules prevent any process from bypassing the proxy by connecting to an external IP directly. Only root (the user iron-proxy runs as) and already-established connections are allowed to make outbound connections. All other processes must go through loopback, where the proxy is listening.
 
+> **Security note:** GitHub Actions gives build jobs `sudo`. As a result an attacker could undo the enforcement above if they knew they were running in a locked-down runner like this. Self-hosted runners that remove `sudo` access or using your own control plane that controls egress outside the runner itself are therefore much more preferable from a security perspective.
+
 ## Detailed Walkthrough
 
 The entire proxy setup happens inside a single `run:` block in the workflow. Here is each piece, in order.
