@@ -26,8 +26,7 @@ transforms:
         # Stuff your build needs
         - "nodejs.org"
         - "*.nodejs.org"
-      cidrs:
-        - "127.0.0.0/8"
+        - "*.npmjs.org"
 
 log:
   level: "info"
