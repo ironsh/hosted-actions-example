@@ -16,7 +16,7 @@ That's it. Everything below explains what is happening under the hood.
 
 The proxy configuration lives in [`iron-proxy.yaml`](iron-proxy.yaml). The key section is the `transforms` block:
 
-```hosted-actions-example/iron-proxy.yaml#L15-30
+```yaml
 transforms:
   - name: allowlist
     config:
@@ -42,7 +42,7 @@ transforms:
 
 The workflow includes a final step that always runs, even if earlier steps fail:
 
-```hosted-actions-example/.github/workflows/ci.yaml#L82-87
+```yaml
 - name: Print proxy log
   if: always()
   run: |
@@ -70,7 +70,7 @@ The entire proxy setup happens inside a single `run:` block in the workflow. Her
 
 ### Download and Install iron-proxy
 
-```hosted-actions-example/.github/workflows/ci.yaml#L18-25
+```bash
 # Download and install iron-proxy
 echo "=== Installing iron-proxy ==="
 export VERSION=0.4.0
@@ -85,7 +85,7 @@ Downloads a pinned release of iron-proxy and places it on the `PATH`.
 
 ### Generate a CA for TLS Interception
 
-```hosted-actions-example/.github/workflows/ci.yaml#L27-37
+```bash
 # Generate a CA for TLS interception. Must have keyUsage=critical,keyCertSign and CA constraints
 echo "=== Generating CA for TLS interception ==="
 mkdir -p /tmp/iron-proxy-ca
@@ -110,7 +110,7 @@ The CA is ephemeral: created fresh on every run and discarded when the runner is
 
 ### Trust the CA
 
-```hosted-actions-example/.github/workflows/ci.yaml#L39-44
+```bash
 # Trust the CA system-wide, and within Node.js. Some tools require extra config
 echo "=== Trusting CA system-wide ==="
 sudo cp /tmp/iron-proxy-ca/ca.crt \
@@ -128,17 +128,17 @@ For TLS interception to work transparently, tools in your CI job need to trust t
 
 ### Stop systemd-resolved
 
-```hosted-actions-example/.github/workflows/ci.yaml#L46-48
-          # Stop systemd-resolved. Required to allow iron-proxy to handle DNS resolution
-          echo "=== Stopping systemd-resolved ==="
-          sudo systemctl stop systemd-resolved || true
+```bash
+# Stop systemd-resolved. Required to allow iron-proxy to handle DNS resolution
+echo "=== Stopping systemd-resolved ==="
+sudo systemctl stop systemd-resolved || true
 ```
 
 On Ubuntu runners, `systemd-resolved` manages DNS and listens on port 53. iron-proxy needs that port for its own DNS server. Stopping `systemd-resolved` frees it up.
 
 ### Start iron-proxy with setsid
 
-```hosted-actions-example/.github/workflows/ci.yaml#L50-55
+```bash
 # Start iron-proxy. Use setsid to run it in a new session so it is not
 # killed when the run: block's shell exits.
 echo "=== Starting iron-proxy ==="
@@ -153,7 +153,7 @@ iron-proxy runs as root so it can bind to privileged ports (53, 80, 443) without
 
 ### Delete the CA Key from Disk
 
-```hosted-actions-example/.github/workflows/ci.yaml#L57-58
+```bash
 # Delete the key from disk now that it's in memory
 rm /tmp/iron-proxy-ca/ca.key
 ```
@@ -162,7 +162,7 @@ Once iron-proxy has loaded the CA key into memory, the file on disk is no longer
 
 ### Route DNS Through the Proxy
 
-```hosted-actions-example/.github/workflows/ci.yaml#L60-62
+```bash
 # Route DNS through the proxy
 echo "=== Routing DNS through the proxy ==="
 sudo bash -c 'echo "nameserver 127.0.0.1" > /etc/resolv.conf'
@@ -172,7 +172,7 @@ This overwrites `/etc/resolv.conf` so all DNS queries go to `127.0.0.1`, where i
 
 ### Lock Down Outbound Traffic with iptables
 
-```hosted-actions-example/.github/workflows/ci.yaml#L64-73
+```bash
 # Lock down outbound traffic with iptables. Only loopback traffic (how
 # processes reach the proxy), DNS to the upstream resolver, and traffic
 # from root (how the proxy reaches the internet) are allowed. Everything
