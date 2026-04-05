@@ -6,9 +6,9 @@
 
 1. Copy [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) and [`egress-rules.yaml`](egress-rules.yaml) into your repository.
 2. Replace the build steps (`npm ci`, `npm test`) with your own.
-3. Push and let the workflow run. It will probably fail because your build contacts hosts that aren't in the allowlist yet.
-4. Check the job summary produced by the `ironsh/iron-proxy-action/summary` step. It shows every request iron-proxy handled, including blocked ones.
-5. Add the blocked domains to the `domains` list in `egress-rules.yaml`, commit, and re-run. Repeat until your build passes.
+3. Set `warn: true` on the action and push. The build will pass normally while the proxy logs every outbound request without blocking anything.
+4. Check the job summary produced by the `ironsh/iron-proxy-action/summary` step. It shows every domain your build contacted.
+5. Add those domains to the `domains` list in `egress-rules.yaml`, remove `warn: true`, and push again. The proxy will now enforce the allowlist.
 
 That's it. Everything below explains what is happening under the hood.
 
