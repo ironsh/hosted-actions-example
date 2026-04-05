@@ -1,0 +1,13 @@
+domains:
+  # GitHub Actions infrastructure
+  - "github.com"
+  - "*.github.com"
+  - "*.githubusercontent.com"
+  - "*.actions.githubusercontent.com"
+  - "*.pkg.github.com"
+  - "*.blob.core.windows.net"
+  - "api.github.com"
+  # Stuff your build needs
+  - "nodejs.org"
+  - "*.nodejs.org"
+  - "*.npmjs.org"
