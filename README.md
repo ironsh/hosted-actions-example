@@ -1,16 +1,40 @@
 # Hosted Actions Example: Using iron-proxy in GitHub Actions
 
-[iron-proxy](https://github.com/ironsh/iron-proxy) is a transparent forward proxy that intercepts all HTTP and HTTPS traffic from your CI job and enforces a domain allowlist. The [`ironsh/iron-proxy-action`](https://github.com/marketplace/actions/iron-proxy) GitHub Action handles all the setup for you. This repository is a working example you can copy and adapt.
+[iron-proxy](https://github.com/ironsh/iron-proxy) is a transparent forward proxy that intercepts all HTTP and HTTPS traffic from your CI job and enforces a domain allowlist. The [`ironsh/iron-proxy-action`](https://github.com/marketplace/actions/iron-proxy) GitHub Action handles all the setup for you.
 
 ## Quick Start
 
-1. Copy [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) and [`egress-rules.yaml`](egress-rules.yaml) into your repository.
-2. Replace the build steps (`npm ci`, `npm test`) with your own.
-3. Set `warn: true` on the action and push. The build will pass normally while the proxy logs every outbound request without blocking anything.
-4. Check the job summary produced by the `ironsh/iron-proxy-action/summary` step. It shows every domain your build contacted.
-5. Add those domains to the `domains` list in `egress-rules.yaml`, remove `warn: true`, and push again. The proxy will now enforce the allowlist.
+Add the action to your workflow before your build steps, and the summary step after:
 
-That's it. Everything below explains what is happening under the hood.
+```yaml
+steps:
+  - uses: actions/checkout@v4
+
+  - uses: ironsh/iron-proxy-action@v0.1.0
+    with:
+      egress-rules: egress-rules.yaml
+      warn: true # log denied requests without blocking
+
+  # Your build steps
+  - run: npm ci
+  - run: npm test
+
+  - uses: ironsh/iron-proxy-action/summary@v0.1.0
+    if: always()
+```
+
+Create an `egress-rules.yaml` with the domains your build needs. You can use this repo's [`egress-rules.yaml`](egress-rules.yaml) as a starting point:
+
+```yaml
+domains:
+  - "nodejs.org"
+  - "*.nodejs.org"
+  - "*.npmjs.org"
+```
+
+Push with `warn: true` and check the job summary to see every domain your build contacted. Add those domains to `egress-rules.yaml`, remove `warn: true`, and push again. The proxy will now enforce the allowlist.
+
+See this repository for a complete working example. Everything below explains what is happening under the hood.
 
 > **Security note:** GitHub Actions gives build jobs `sudo` by default. The action revokes `sudo` for subsequent steps (controlled by the `disable-sudo` input) so that build scripts cannot bypass the proxy. For stronger isolation, we recommend using self-hosted runners in VMs and performing egress enforcement at the hypervisor level.
 
@@ -56,15 +80,6 @@ The egress rules live in [`egress-rules.yaml`](egress-rules.yaml):
 
 ```yaml
 domains:
-  # GitHub Actions infrastructure
-  - "github.com"
-  - "*.github.com"
-  - "*.githubusercontent.com"
-  - "*.actions.githubusercontent.com"
-  - "*.pkg.github.com"
-  - "*.blob.core.windows.net"
-  - "api.github.com"
-  # Stuff your build needs
   - "nodejs.org"
   - "*.nodejs.org"
   - "*.npmjs.org"
